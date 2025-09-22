@@ -1,9 +1,11 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 from ai_generator import AIGenerator, ToolCallTracker
 
 
@@ -13,7 +15,7 @@ class TestAIGenerator:
     @pytest.fixture
     def mock_anthropic_client(self):
         """Create mock Anthropic client"""
-        with patch('ai_generator.anthropic.Anthropic') as mock:
+        with patch("ai_generator.anthropic.Anthropic") as mock:
             yield mock.return_value
 
     @pytest.fixture
@@ -31,14 +33,14 @@ class TestAIGenerator:
                 "description": "Search course materials",
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "query": {"type": "string"}
-                    },
-                    "required": ["query"]
-                }
+                    "properties": {"query": {"type": "string"}},
+                    "required": ["query"],
+                },
             }
         ]
-        manager.execute_tool.return_value = "Search results: Python is a programming language"
+        manager.execute_tool.return_value = (
+            "Search results: Python is a programming language"
+        )
         return manager
 
     def test_generate_response_without_tools(self, ai_generator, mock_anthropic_client):
@@ -56,7 +58,9 @@ class TestAIGenerator:
         assert result == "This is a response"
         mock_anthropic_client.messages.create.assert_called_once()
 
-    def test_generate_response_with_tool_call(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_generate_response_with_tool_call(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that AI generator correctly calls tools"""
         # Create mock tool use content
         mock_tool_use = Mock()
@@ -72,31 +76,34 @@ class TestAIGenerator:
 
         # Configure follow-up response
         mock_final_response = Mock()
-        mock_final_response.content = [Mock(text="Based on the search, Python is a programming language")]
+        mock_final_response.content = [
+            Mock(text="Based on the search, Python is a programming language")
+        ]
 
         # Set up the mock to return different responses
         mock_anthropic_client.messages.create.side_effect = [
             mock_initial_response,
-            mock_final_response
+            mock_final_response,
         ]
 
         # Generate response with tools
         result = ai_generator.generate_response(
             "What is Python?",
             tools=mock_tool_manager.get_tool_definitions(),
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify tool was called
         mock_tool_manager.execute_tool.assert_called_once_with(
-            "search_course_content",
-            query="Python basics"
+            "search_course_content", query="Python basics"
         )
 
         # Verify final response
         assert "Based on the search" in result
 
-    def test_handle_tool_execution(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_handle_tool_execution(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test _handle_tool_execution method"""
         # Create mock tool use
         mock_tool_use = Mock()
@@ -111,32 +118,33 @@ class TestAIGenerator:
 
         # Create final response
         mock_final_response = Mock()
-        mock_final_response.content = [Mock(text="Decorators are functions that modify other functions")]
+        mock_final_response.content = [
+            Mock(text="Decorators are functions that modify other functions")
+        ]
 
         mock_anthropic_client.messages.create.return_value = mock_final_response
 
         # Test tool execution handling
         base_params = {
             "messages": [{"role": "user", "content": "What are decorators?"}],
-            "system": "Test system prompt"
+            "system": "Test system prompt",
         }
 
         result = ai_generator._handle_tool_execution(
-            mock_initial_response,
-            base_params,
-            mock_tool_manager
+            mock_initial_response, base_params, mock_tool_manager
         )
 
         # Verify tool was executed
         mock_tool_manager.execute_tool.assert_called_once_with(
-            "search_course_content",
-            query="decorators"
+            "search_course_content", query="decorators"
         )
 
         # Verify result
         assert "Decorators are functions" in result
 
-    def test_conversation_history_integration(self, ai_generator, mock_anthropic_client):
+    def test_conversation_history_integration(
+        self, ai_generator, mock_anthropic_client
+    ):
         """Test that conversation history is properly integrated"""
         # Configure mock response
         mock_response = Mock()
@@ -147,8 +155,7 @@ class TestAIGenerator:
         # Generate response with history
         history = "User: Previous question\nAssistant: Previous answer"
         result = ai_generator.generate_response(
-            "New question",
-            conversation_history=history
+            "New question", conversation_history=history
         )
 
         # Verify history was included in system prompt
@@ -180,7 +187,9 @@ class TestAIGenerator:
         assert call_args[1]["temperature"] == 0
         assert call_args[1]["max_tokens"] == 800
 
-    def test_tool_choice_auto(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_tool_choice_auto(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that tool_choice is set to auto when tools are provided"""
         # Configure mock response
         mock_response = Mock()
@@ -192,7 +201,7 @@ class TestAIGenerator:
         ai_generator.generate_response(
             "Query",
             tools=mock_tool_manager.get_tool_definitions(),
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify tool_choice was set in the sequential tool execution path
@@ -207,7 +216,7 @@ class TestSequentialToolCalling:
     @pytest.fixture
     def mock_anthropic_client(self):
         """Create mock Anthropic client"""
-        with patch('ai_generator.anthropic.Anthropic') as mock:
+        with patch("ai_generator.anthropic.Anthropic") as mock:
             yield mock.return_value
 
     @pytest.fixture
@@ -225,21 +234,21 @@ class TestSequentialToolCalling:
                 "description": "Search course materials",
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "query": {"type": "string"}
-                    },
-                    "required": ["query"]
-                }
+                    "properties": {"query": {"type": "string"}},
+                    "required": ["query"],
+                },
             }
         ]
         # Different results for different searches
         manager.execute_tool.side_effect = [
             "First search result: Python basics information",
-            "Second search result: Advanced Python topics"
+            "Second search result: Advanced Python topics",
         ]
         return manager
 
-    def test_single_tool_call_backwards_compatibility(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_single_tool_call_backwards_compatibility(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that single tool calls still work (backwards compatibility)"""
         # Create mock tool use content
         mock_tool_use = Mock()
@@ -261,7 +270,7 @@ class TestSequentialToolCalling:
         # Set up the mock to return different responses
         mock_anthropic_client.messages.create.side_effect = [
             mock_initial_response,
-            mock_final_response
+            mock_final_response,
         ]
 
         # Generate response with tools
@@ -269,14 +278,16 @@ class TestSequentialToolCalling:
             "What is Python?",
             tools=mock_tool_manager.get_tool_definitions(),
             tool_manager=mock_tool_manager,
-            max_tool_rounds=2
+            max_tool_rounds=2,
         )
 
         # Verify only one tool was called
         assert mock_tool_manager.execute_tool.call_count == 1
         assert "Python is a programming language" in result
 
-    def test_sequential_tool_calls_two_rounds(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_sequential_tool_calls_two_rounds(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that sequential tool calls work for two rounds"""
         # Create mock tool use content for first round
         mock_tool_use_1 = Mock()
@@ -302,13 +313,15 @@ class TestSequentialToolCalling:
         mock_response_2.stop_reason = "tool_use"
 
         mock_final_response = Mock()
-        mock_final_response.content = [Mock(text="Comprehensive Python answer covering basics and advanced topics")]
+        mock_final_response.content = [
+            Mock(text="Comprehensive Python answer covering basics and advanced topics")
+        ]
         mock_final_response.stop_reason = "stop"
 
         mock_anthropic_client.messages.create.side_effect = [
             mock_response_1,
             mock_response_2,
-            mock_final_response
+            mock_final_response,
         ]
 
         # Generate response
@@ -316,14 +329,16 @@ class TestSequentialToolCalling:
             "Tell me about Python programming from basics to advanced",
             tools=mock_tool_manager.get_tool_definitions(),
             tool_manager=mock_tool_manager,
-            max_tool_rounds=2
+            max_tool_rounds=2,
         )
 
         # Verify two tools were called
         assert mock_tool_manager.execute_tool.call_count == 2
         assert "Comprehensive Python answer" in result
 
-    def test_max_rounds_enforcement(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_max_rounds_enforcement(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that max rounds limit is enforced"""
         # Create tool use responses that would continue indefinitely
         mock_tool_use = Mock()
@@ -344,7 +359,7 @@ class TestSequentialToolCalling:
         mock_anthropic_client.messages.create.side_effect = [
             mock_tool_response,  # Round 1
             mock_tool_response,  # Round 2
-            mock_final_response  # Final synthesis
+            mock_final_response,  # Final synthesis
         ]
 
         # Generate response with max_tool_rounds=2
@@ -352,14 +367,16 @@ class TestSequentialToolCalling:
             "Test query",
             tools=mock_tool_manager.get_tool_definitions(),
             tool_manager=mock_tool_manager,
-            max_tool_rounds=2
+            max_tool_rounds=2,
         )
 
         # Should have called exactly 2 tools (max rounds)
         assert mock_tool_manager.execute_tool.call_count == 2
         assert "Final response after max rounds" in result
 
-    def test_tool_execution_failure_handling(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_tool_execution_failure_handling(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test handling of tool execution failures"""
         # Configure tool manager to fail
         mock_tool_manager.execute_tool.side_effect = Exception("Tool execution error")
@@ -377,20 +394,22 @@ class TestSequentialToolCalling:
 
         # Mock final response after tool failure
         mock_final_response = Mock()
-        mock_final_response.content = [Mock(text="I apologize, but I couldn't complete the search")]
+        mock_final_response.content = [
+            Mock(text="I apologize, but I couldn't complete the search")
+        ]
         mock_final_response.stop_reason = "stop"
 
         # Tool execution fails, but we should get a final response
         mock_anthropic_client.messages.create.side_effect = [
             mock_tool_response,
-            mock_final_response
+            mock_final_response,
         ]
 
         # Generate response
         result = ai_generator.generate_response(
             "Test query",
             tools=mock_tool_manager.get_tool_definitions(),
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Should handle error gracefully and return the final response
@@ -398,12 +417,14 @@ class TestSequentialToolCalling:
         assert isinstance(result, str)
         assert "apologize" in result.lower() or "couldn't" in result.lower()
 
-    def test_context_accumulation_between_rounds(self, ai_generator, mock_anthropic_client, mock_tool_manager):
+    def test_context_accumulation_between_rounds(
+        self, ai_generator, mock_anthropic_client, mock_tool_manager
+    ):
         """Test that context accumulates properly between rounds"""
         # Mock two tool calls with different results
         mock_tool_manager.execute_tool.side_effect = [
             "First result about Python",
-            "Second result about Java"
+            "Second result about Java",
         ]
 
         # Create tool use mocks
@@ -435,14 +456,14 @@ class TestSequentialToolCalling:
         mock_anthropic_client.messages.create.side_effect = [
             mock_response_1,
             mock_response_2,
-            mock_final_response
+            mock_final_response,
         ]
 
         # Generate response
         result = ai_generator.generate_response(
             "Compare Python and Java",
             tools=mock_tool_manager.get_tool_definitions(),
-            tool_manager=mock_tool_manager
+            tool_manager=mock_tool_manager,
         )
 
         # Verify context was included in second round
@@ -470,9 +491,7 @@ class TestSequentialToolCalling:
         mock_tool_manager.get_tool_definitions.return_value = []
 
         result = ai_generator.generate_response(
-            "What is 2+2?",
-            tools=[],
-            tool_manager=mock_tool_manager
+            "What is 2+2?", tools=[], tool_manager=mock_tool_manager
         )
 
         assert result == "Direct answer without tools"

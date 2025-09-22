@@ -1,7 +1,8 @@
-import anthropic
-from typing import List, Optional, Dict, Any
 import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
+import anthropic
 
 
 @dataclass
@@ -24,16 +25,25 @@ class ToolCallTracker:
         self.current_round += 1
         return self.current_round
 
-    def log_tool_call(self, tool_name: str, params: dict, execution_time: float, success: bool, error: str = None):
+    def log_tool_call(
+        self,
+        tool_name: str,
+        params: dict,
+        execution_time: float,
+        success: bool,
+        error: str = None,
+    ):
         """Log details of a tool call"""
-        self.tool_calls_made.append({
-            'round': self.current_round,
-            'tool_name': tool_name,
-            'params': params,
-            'execution_time': execution_time,
-            'success': success,
-            'error': error
-        })
+        self.tool_calls_made.append(
+            {
+                "round": self.current_round,
+                "tool_name": tool_name,
+                "params": params,
+                "execution_time": execution_time,
+                "success": success,
+                "error": error,
+            }
+        )
 
         self.execution_times.append(execution_time)
 
@@ -43,17 +53,22 @@ class ToolCallTracker:
     def get_summary(self) -> dict:
         """Get summary of tool calling session"""
         return {
-            'total_rounds': self.current_round,
-            'total_tool_calls': len(self.tool_calls_made),
-            'successful_calls': len([call for call in self.tool_calls_made if call['success']]),
-            'failed_calls': len([call for call in self.tool_calls_made if not call['success']]),
-            'total_execution_time': sum(self.execution_times),
-            'errors': self.errors
+            "total_rounds": self.current_round,
+            "total_tool_calls": len(self.tool_calls_made),
+            "successful_calls": len(
+                [call for call in self.tool_calls_made if call["success"]]
+            ),
+            "failed_calls": len(
+                [call for call in self.tool_calls_made if not call["success"]]
+            ),
+            "total_execution_time": sum(self.execution_times),
+            "errors": self.errors,
         }
+
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
-    
+
     # Static system prompt to avoid rebuilding on each call
     SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to a comprehensive search tool for course information.
 
@@ -86,23 +101,22 @@ All responses must be:
 
 Provide only the direct answer to what was asked, informed by all available search results.
 """
-    
+
     def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
-        
+
         # Pre-build base API parameters
-        self.base_params = {
-            "model": self.model,
-            "temperature": 0,
-            "max_tokens": 800
-        }
-    
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None,
-                         max_tool_rounds: int = 2) -> str:
+        self.base_params = {"model": self.model, "temperature": 0, "max_tokens": 800}
+
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: Optional[str] = None,
+        tools: Optional[List] = None,
+        tool_manager=None,
+        max_tool_rounds: int = 2,
+    ) -> str:
         """
         Generate AI response with optional sequential tool usage and conversation context.
 
@@ -140,65 +154,71 @@ Provide only the direct answer to what was asked, informed by all available sear
             api_params = {
                 **self.base_params,
                 "messages": messages,
-                "system": system_content
+                "system": system_content,
             }
 
             response = self.client.messages.create(**api_params)
             return response.content[0].text
-    
-    def _handle_tool_execution(self, initial_response, base_params: Dict[str, Any], tool_manager):
+
+    def _handle_tool_execution(
+        self, initial_response, base_params: Dict[str, Any], tool_manager
+    ):
         """
         Handle execution of tool calls and get follow-up response.
-        
+
         Args:
             initial_response: The response containing tool use requests
             base_params: Base API parameters
             tool_manager: Manager to execute tools
-            
+
         Returns:
             Final response text after tool execution
         """
         # Start with existing messages
         messages = base_params["messages"].copy()
-        
+
         # Add AI's tool use response
         messages.append({"role": "assistant", "content": initial_response.content})
-        
+
         # Execute all tool calls and collect results
         tool_results = []
         for content_block in initial_response.content:
             if content_block.type == "tool_use":
                 tool_result = tool_manager.execute_tool(
-                    content_block.name, 
-                    **content_block.input
+                    content_block.name, **content_block.input
                 )
-                
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": tool_result
-                })
-        
+
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": tool_result,
+                    }
+                )
+
         # Add tool results as single message
         if tool_results:
             messages.append({"role": "user", "content": tool_results})
-        
+
         # Prepare final API call without tools
         final_params = {
             **self.base_params,
             "messages": messages,
-            "system": base_params["system"]
+            "system": base_params["system"],
         }
-        
+
         # Get final response
         final_response = self.client.messages.create(**final_params)
         return final_response.content[0].text
 
-    def _handle_sequential_tool_execution(self, messages: List[Dict[str, Any]],
-                                        system_content: str,
-                                        tools: List,
-                                        tool_manager,
-                                        tool_tracker: ToolCallTracker) -> str:
+    def _handle_sequential_tool_execution(
+        self,
+        messages: List[Dict[str, Any]],
+        system_content: str,
+        tools: List,
+        tool_manager,
+        tool_tracker: ToolCallTracker,
+    ) -> str:
         """
         Handle sequential tool execution with up to max_tool_rounds rounds.
 
@@ -230,7 +250,7 @@ Provide only the direct answer to what was asked, informed by all available sear
                 "messages": messages.copy(),
                 "system": enriched_system,
                 "tools": tools,
-                "tool_choice": {"type": "auto"}
+                "tool_choice": {"type": "auto"},
             }
 
             # Get response from Claude
@@ -264,12 +284,14 @@ Provide only the direct answer to what was asked, informed by all available sear
             isinstance(content, dict) and content.get("type") == "tool_result"
             for content in messages[-1]["content"]
         ):
-            final_system = self._build_synthesis_system_content(system_content, accumulated_context)
+            final_system = self._build_synthesis_system_content(
+                system_content, accumulated_context
+            )
 
             final_params = {
                 **self.base_params,
                 "messages": messages,
-                "system": final_system
+                "system": final_system,
                 # No tools for final synthesis
             }
 
@@ -284,17 +306,19 @@ Provide only the direct answer to what was asked, informed by all available sear
                     # Extract text from content blocks
                     text_parts = []
                     for block in content:
-                        if hasattr(block, 'text'):
+                        if hasattr(block, "text"):
                             text_parts.append(block.text)
-                        elif isinstance(block, dict) and block.get('type') == 'text':
-                            text_parts.append(block.get('text', ''))
+                        elif isinstance(block, dict) and block.get("type") == "text":
+                            text_parts.append(block.get("text", ""))
 
                     if text_parts:
-                        return '\n'.join(text_parts)
+                        return "\n".join(text_parts)
 
         return "I apologize, but I couldn't generate a proper response."
 
-    def _execute_and_track_tools(self, response, tool_manager, tool_tracker: ToolCallTracker, current_round: int):
+    def _execute_and_track_tools(
+        self, response, tool_manager, tool_tracker: ToolCallTracker, current_round: int
+    ):
         """
         Execute tools from a response and track the execution details.
 
@@ -318,33 +342,33 @@ Provide only the direct answer to what was asked, informed by all available sear
                 try:
                     # Execute the tool
                     tool_result = tool_manager.execute_tool(
-                        content_block.name,
-                        **content_block.input
+                        content_block.name, **content_block.input
                     )
 
                     execution_time = time.time() - start_time
 
                     # Log successful execution
                     tool_tracker.log_tool_call(
-                        content_block.name,
-                        content_block.input,
-                        execution_time,
-                        True
+                        content_block.name, content_block.input, execution_time, True
                     )
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": content_block.id,
-                        "content": tool_result
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": content_block.id,
+                            "content": tool_result,
+                        }
+                    )
 
-                    tool_executions.append({
-                        "tool_name": content_block.name,
-                        "input": content_block.input,
-                        "result": tool_result,
-                        "execution_time": execution_time,
-                        "success": True
-                    })
+                    tool_executions.append(
+                        {
+                            "tool_name": content_block.name,
+                            "input": content_block.input,
+                            "result": tool_result,
+                            "execution_time": execution_time,
+                            "success": True,
+                        }
+                    )
 
                 except Exception as e:
                     execution_time = time.time() - start_time
@@ -356,36 +380,44 @@ Provide only the direct answer to what was asked, informed by all available sear
                         content_block.input,
                         execution_time,
                         False,
-                        error_msg
+                        error_msg,
                     )
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": content_block.id,
-                        "content": error_msg,
-                        "is_error": True
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": content_block.id,
+                            "content": error_msg,
+                            "is_error": True,
+                        }
+                    )
 
-                    tool_executions.append({
-                        "tool_name": content_block.name,
-                        "input": content_block.input,
-                        "result": error_msg,
-                        "execution_time": execution_time,
-                        "success": False,
-                        "error": str(e)
-                    })
+                    tool_executions.append(
+                        {
+                            "tool_name": content_block.name,
+                            "input": content_block.input,
+                            "result": error_msg,
+                            "execution_time": execution_time,
+                            "success": False,
+                            "error": str(e),
+                        }
+                    )
 
         # Create context entry for this round
         context_entry = {
             "round": current_round,
             "tool_executions": tool_executions,
             "total_tools": len(tool_executions),
-            "successful_tools": len([exec for exec in tool_executions if exec["success"]])
+            "successful_tools": len(
+                [exec for exec in tool_executions if exec["success"]]
+            ),
         }
 
         return tool_results if tool_results else None, context_entry
 
-    def _build_enriched_system_content(self, base_content: str, accumulated_context: List[Dict], current_round: int) -> str:
+    def _build_enriched_system_content(
+        self, base_content: str, accumulated_context: List[Dict], current_round: int
+    ) -> str:
         """
         Build enriched system content including previous tool results and round guidance.
 
@@ -414,7 +446,9 @@ Provide only the direct answer to what was asked, informed by all available sear
 
         return enriched_content
 
-    def _build_synthesis_system_content(self, base_content: str, accumulated_context: List[Dict]) -> str:
+    def _build_synthesis_system_content(
+        self, base_content: str, accumulated_context: List[Dict]
+    ) -> str:
         """
         Build system content for final synthesis phase.
 
@@ -439,7 +473,9 @@ Final Response Phase:
 
         if accumulated_context:
             context_summary = self._summarize_tool_context(accumulated_context)
-            enriched_content += f"\n\nAll search results to synthesize:\n{context_summary}"
+            enriched_content += (
+                f"\n\nAll search results to synthesize:\n{context_summary}"
+            )
 
         return enriched_content
 

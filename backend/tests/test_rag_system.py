@@ -1,13 +1,15 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-import tempfile
 import shutil
-from rag_system import RAGSystem
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from config import Config
+from rag_system import RAGSystem
 
 
 class TestRAGSystem:
@@ -50,20 +52,24 @@ class TestRAGSystem:
     @pytest.fixture
     def rag_system_with_bug(self, mock_config):
         """Create RAG system with MAX_RESULTS=0 bug"""
-        with patch('rag_system.AIGenerator') as mock_ai:
-            mock_ai.return_value.generate_response.return_value = "Query failed: No results found"
+        with patch("rag_system.AIGenerator") as mock_ai:
+            mock_ai.return_value.generate_response.return_value = (
+                "Query failed: No results found"
+            )
             return RAGSystem(mock_config)
 
     @pytest.fixture
     def rag_system_fixed(self, mock_config_fixed):
         """Create RAG system with fixed configuration"""
-        with patch('rag_system.AIGenerator') as mock_ai:
-            mock_ai.return_value.generate_response.return_value = "Python is a programming language"
+        with patch("rag_system.AIGenerator") as mock_ai:
+            mock_ai.return_value.generate_response.return_value = (
+                "Python is a programming language"
+            )
             return RAGSystem(mock_config_fixed)
 
     def test_rag_system_initialization(self, mock_config):
         """Test that RAG system initializes all components"""
-        with patch('rag_system.AIGenerator'):
+        with patch("rag_system.AIGenerator"):
             rag_system = RAGSystem(mock_config)
 
             assert rag_system.document_processor is not None
@@ -75,7 +81,7 @@ class TestRAGSystem:
 
     def test_vector_store_max_results_bug(self, mock_config):
         """Test that vector store is initialized with MAX_RESULTS from config"""
-        with patch('rag_system.AIGenerator'):
+        with patch("rag_system.AIGenerator"):
             rag_system = RAGSystem(mock_config)
 
             # Vector store should have max_results=0 (the bug)
@@ -83,7 +89,7 @@ class TestRAGSystem:
 
     def test_vector_store_max_results_fixed(self, mock_config_fixed):
         """Test that vector store works with fixed MAX_RESULTS"""
-        with patch('rag_system.AIGenerator'):
+        with patch("rag_system.AIGenerator"):
             rag_system = RAGSystem(mock_config_fixed)
 
             # Vector store should have max_results=5
@@ -92,9 +98,13 @@ class TestRAGSystem:
     def test_query_with_zero_max_results(self, rag_system_with_bug):
         """Test query behavior with MAX_RESULTS=0 (demonstrates the bug)"""
         # Mock the AI generator to simulate actual behavior
-        with patch.object(rag_system_with_bug.ai_generator, 'generate_response') as mock_gen:
+        with patch.object(
+            rag_system_with_bug.ai_generator, "generate_response"
+        ) as mock_gen:
             # When no results are found, typical response
-            mock_gen.return_value = "I couldn't find any relevant information in the course materials."
+            mock_gen.return_value = (
+                "I couldn't find any relevant information in the course materials."
+            )
 
             response, sources = rag_system_with_bug.query("What is Python?")
 
@@ -113,7 +123,7 @@ class TestRAGSystem:
 
     def test_tool_registration(self, mock_config):
         """Test that search tool is properly registered"""
-        with patch('rag_system.AIGenerator'):
+        with patch("rag_system.AIGenerator"):
             rag_system = RAGSystem(mock_config)
 
             # Check tool is registered
@@ -151,15 +161,17 @@ class TestRAGSystem:
         assert isinstance(analytics["total_courses"], int)
         assert isinstance(analytics["course_titles"], list)
 
-    @patch('rag_system.os.path.exists')
-    @patch('rag_system.os.listdir')
+    @patch("rag_system.os.path.exists")
+    @patch("rag_system.os.listdir")
     def test_add_course_folder(self, mock_listdir, mock_exists, rag_system_fixed):
         """Test adding course folder"""
         mock_exists.return_value = True
         mock_listdir.return_value = ["course1.txt", "course2.pdf"]
 
         # Mock document processor
-        with patch.object(rag_system_fixed.document_processor, 'process_course_document') as mock_process:
+        with patch.object(
+            rag_system_fixed.document_processor, "process_course_document"
+        ) as mock_process:
             # Return None to simulate processing without actual file reading
             mock_process.return_value = (None, [])
 
@@ -170,7 +182,7 @@ class TestRAGSystem:
 
     def test_query_integration(self, mock_config_fixed):
         """Integration test for the full query pipeline"""
-        with patch('rag_system.AIGenerator') as mock_ai_class:
+        with patch("rag_system.AIGenerator") as mock_ai_class:
             # Set up mock AI generator
             mock_ai = mock_ai_class.return_value
             mock_ai.generate_response.return_value = "Test response about Python"

@@ -4,8 +4,9 @@ Integration test to verify the RAG system is working correctly after the fix.
 This test uses the actual system with real ChromaDB data.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import config
@@ -25,7 +26,9 @@ def test_rag_query_after_fix():
 
     # Test vector store directly
     print(f"2. Vector Store Test:")
-    vector_store = VectorStore(config.CHROMA_PATH, config.EMBEDDING_MODEL, config.MAX_RESULTS)
+    vector_store = VectorStore(
+        config.CHROMA_PATH, config.EMBEDDING_MODEL, config.MAX_RESULTS
+    )
     print(f"   Vector store initialized with max_results = {vector_store.max_results}")
 
     # Check if we have data

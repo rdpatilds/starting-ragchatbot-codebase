@@ -32,6 +32,23 @@ uv sync
 # uv will handle Python version automatically
 ```
 
+### Code Quality and Formatting
+
+```bash
+# Format code and run all quality checks (modifies files)
+./format.sh
+
+# Run quality checks only (read-only, no file modifications)
+./check.sh
+
+# Individual tools (run from project root):
+uv run black backend/          # Format code with black
+uv run isort backend/          # Sort imports
+uv run flake8 backend/         # Lint code
+uv run mypy backend/           # Type checking
+uv run pytest backend/tests/   # Run tests
+```
+
 ### Environment Setup
 
 Create a `.env` file with:
@@ -147,6 +164,6 @@ Default port is 8000. To change:
 - ChromaDB data persists between restarts in `backend/chroma_db/`
 - Frontend uses relative API paths, works with any port
 - Session management is in-memory (resets on server restart)
-- No test suite currently exists in the project
+- Test suite available in `backend/tests/` directory
 - always use uv to run the server do not use pip directly
 - make sure to use uv for all dependency management

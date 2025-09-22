@@ -1,9 +1,11 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
 from search_tools import CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
@@ -25,7 +27,9 @@ class TestCourseSearchTool:
     def test_execute_with_empty_results(self, search_tool, mock_vector_store):
         """Test execute when vector store returns empty results"""
         # Configure mock to return empty results
-        empty_results = SearchResults(documents=[], metadata=[], distances=[], error=None)
+        empty_results = SearchResults(
+            documents=[], metadata=[], distances=[], error=None
+        )
         mock_vector_store.search.return_value = empty_results
 
         # Execute search
@@ -34,9 +38,7 @@ class TestCourseSearchTool:
         # Should return no content found message
         assert "No relevant content found" in result
         mock_vector_store.search.assert_called_once_with(
-            query="Python basics",
-            course_name=None,
-            lesson_number=None
+            query="Python basics", course_name=None, lesson_number=None
         )
 
     def test_execute_with_results(self, search_tool, mock_vector_store):
@@ -46,10 +48,10 @@ class TestCourseSearchTool:
             documents=["Python is a programming language", "Variables store data"],
             metadata=[
                 {"course_title": "Python Basics", "lesson_number": 0},
-                {"course_title": "Python Basics", "lesson_number": 1}
+                {"course_title": "Python Basics", "lesson_number": 1},
             ],
             distances=[0.1, 0.2],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = results
 
@@ -69,21 +71,16 @@ class TestCourseSearchTool:
             documents=["Content from specific course"],
             metadata=[{"course_title": "Advanced Python", "lesson_number": 0}],
             distances=[0.1],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = results
 
         # Execute search with course filter
-        result = search_tool.execute(
-            query="decorators",
-            course_name="Advanced Python"
-        )
+        result = search_tool.execute(query="decorators", course_name="Advanced Python")
 
         # Verify course filter was passed
         mock_vector_store.search.assert_called_once_with(
-            query="decorators",
-            course_name="Advanced Python",
-            lesson_number=None
+            query="decorators", course_name="Advanced Python", lesson_number=None
         )
         assert "Advanced Python" in result
 
@@ -94,21 +91,16 @@ class TestCourseSearchTool:
             documents=["Lesson specific content"],
             metadata=[{"course_title": "Python Basics", "lesson_number": 3}],
             distances=[0.1],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = results
 
         # Execute search with lesson filter
-        result = search_tool.execute(
-            query="functions",
-            lesson_number=3
-        )
+        result = search_tool.execute(query="functions", lesson_number=3)
 
         # Verify lesson filter was passed
         mock_vector_store.search.assert_called_once_with(
-            query="functions",
-            course_name=None,
-            lesson_number=3
+            query="functions", course_name=None, lesson_number=3
         )
         assert "Lesson 3" in result
 
@@ -116,10 +108,7 @@ class TestCourseSearchTool:
         """Test execute when vector store returns error"""
         # Configure mock to return error
         error_results = SearchResults(
-            documents=[],
-            metadata=[],
-            distances=[],
-            error="Database connection failed"
+            documents=[], metadata=[], distances=[], error="Database connection failed"
         )
         mock_vector_store.search.return_value = error_results
 
@@ -136,10 +125,10 @@ class TestCourseSearchTool:
             documents=["Content 1", "Content 2"],
             metadata=[
                 {"course_title": "Course A", "lesson_number": 0},
-                {"course_title": "Course B", "lesson_number": 2}
+                {"course_title": "Course B", "lesson_number": 2},
             ],
             distances=[0.1, 0.2],
-            error=None
+            error=None,
         )
         mock_vector_store.search.return_value = results
 
@@ -178,7 +167,7 @@ class TestToolManager:
         tool = Mock()
         tool.get_tool_definition.return_value = {
             "name": "test_tool",
-            "description": "Test tool"
+            "description": "Test tool",
         }
         tool.execute.return_value = "Tool executed"
         return tool
