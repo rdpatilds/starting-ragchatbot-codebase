@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleButton = document.getElementById('toggleButton');
     
     setupEventListeners();
+    initializeTheme();
     createNewSession();
     loadCourseStats();
 });
@@ -213,13 +214,45 @@ function toggleButtonState() {
     // Update ARIA attribute for accessibility
     toggleButton.setAttribute('aria-pressed', newState.toString());
 
-    // Optional: Add any functionality you want the toggle to control
-    // For now, this is just a visual toggle that could be connected to features later
-    console.log('Toggle button state:', newState ? 'ON' : 'OFF');
+    // Toggle theme between light and dark
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
 
-    // Example: You could dispatch a custom event for other parts of the app to listen to
-    const toggleEvent = new CustomEvent('toggleChanged', {
-        detail: { isOn: newState }
+    if (newTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+
+    // Store theme preference in localStorage
+    localStorage.setItem('theme', newTheme);
+
+    console.log('Theme switched to:', newTheme);
+
+    // Dispatch custom event for other parts of the app
+    const toggleEvent = new CustomEvent('themeChanged', {
+        detail: { theme: newTheme }
     });
     document.dispatchEvent(toggleEvent);
+}
+
+// Initialize theme on page load
+function initializeTheme() {
+    // Get saved theme preference or default to dark
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+
+    // Apply the theme
+    if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        if (toggleButton) {
+            toggleButton.setAttribute('aria-pressed', 'true');
+        }
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        if (toggleButton) {
+            toggleButton.setAttribute('aria-pressed', 'false');
+        }
+    }
+
+    console.log('Theme initialized to:', savedTheme);
 }
