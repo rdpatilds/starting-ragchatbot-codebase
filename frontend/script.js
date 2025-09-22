@@ -5,7 +5,7 @@ const API_URL = '/api';
 let currentSessionId = null;
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, totalCourses, courseTitles, toggleButton;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton = document.getElementById('sendButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
+    toggleButton = document.getElementById('toggleButton');
     
     setupEventListeners();
     createNewSession();
@@ -30,6 +31,18 @@ function setupEventListeners() {
     });
     
     
+    // Toggle button functionality
+    if (toggleButton) {
+        toggleButton.addEventListener('click', toggleButtonState);
+        toggleButton.addEventListener('keydown', (e) => {
+            // Support Enter and Space for keyboard accessibility
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleButtonState();
+            }
+        });
+    }
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -188,4 +201,25 @@ async function loadCourseStats() {
             courseTitles.innerHTML = '<span class="error">Failed to load courses</span>';
         }
     }
+}
+
+// Toggle Button Functions
+function toggleButtonState() {
+    if (!toggleButton) return;
+
+    const isPressed = toggleButton.getAttribute('aria-pressed') === 'true';
+    const newState = !isPressed;
+
+    // Update ARIA attribute for accessibility
+    toggleButton.setAttribute('aria-pressed', newState.toString());
+
+    // Optional: Add any functionality you want the toggle to control
+    // For now, this is just a visual toggle that could be connected to features later
+    console.log('Toggle button state:', newState ? 'ON' : 'OFF');
+
+    // Example: You could dispatch a custom event for other parts of the app to listen to
+    const toggleEvent = new CustomEvent('toggleChanged', {
+        detail: { isOn: newState }
+    });
+    document.dispatchEvent(toggleEvent);
 }
