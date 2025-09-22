@@ -11,7 +11,10 @@ class Config:
     # Anthropic API settings
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
-    
+
+    # HuggingFace settings
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+
     # Embedding model settings
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     

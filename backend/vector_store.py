@@ -4,6 +4,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from models import Course, CourseChunk
 from sentence_transformers import SentenceTransformer
+import os
+from config import config
 
 @dataclass
 class SearchResults:
@@ -41,10 +43,18 @@ class VectorStore:
             path=chroma_path,
             settings=Settings(anonymized_telemetry=False)
         )
-        
-        # Set up sentence transformer embedding function
-        self.embedding_function = chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=embedding_model
+
+        # Set HF_TOKEN in environment if available
+        if config.HF_TOKEN:
+            os.environ['HF_TOKEN'] = config.HF_TOKEN
+            os.environ['HUGGING_FACE_HUB_TOKEN'] = config.HF_TOKEN
+
+        # Use ChromaDB's built-in SentenceTransformer function with the token set
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+        # The token is now in the environment, so the function should use it
+        self.embedding_function = SentenceTransformerEmbeddingFunction(
+            model_name=f"sentence-transformers/{embedding_model}"
         )
         
         # Create collections for different types of data
